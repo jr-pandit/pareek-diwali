@@ -149,12 +149,6 @@ footer p{margin:.2rem 0}
 .card.nm .orn{color:var(--c);font-size:1.5rem}
 #late{background:linear-gradient(180deg,#f6eeff,#fff3cf);box-shadow:0 0 0 8px #ffffff55,0 20px 60px #6a2c9133}
 
-.tally{margin:1.4rem auto 0;display:inline-block;padding:1rem 2rem 1.1rem;border-radius:26px;background:linear-gradient(#fffdf6,#ffefc9);box-shadow:0 8px 26px #ff7a002e;outline:2px solid #e8b44e88;outline-offset:4px}
-.tally .num{font:clamp(2.6rem,10vw,4rem)/1.05 var(--display);color:#c2185b;text-shadow:0 0 22px #ffb300aa;font-variant-numeric:tabular-nums}
-.tally .tl{color:#5a2a40;font-size:1rem}
-.tally.bump .num{animation:bump .5s}
-@keyframes bump{40%{transform:scale(1.18)}}
-.memorial{margin-top:1.2rem}
 .rv{opacity:0;transform:translateY(24px);transition:opacity .9s,transform .9s}
 .rv.in{opacity:1;transform:none}
 @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}.rv{opacity:1;transform:none}}
@@ -188,9 +182,8 @@ footer p{margin:.2rem 0}
   </div>
   <h3 id="fName"></h3>
   <p class="quote" id="fQuote"></p>
-  <div class="tally" id="tallyBox"><div class="num" id="tally" aria-live="polite">—</div><div class="tl" data-i="tallyLbl"></div></div>
   <div class="memorial"><button id="memBtn" data-i="memBtn"></button>
-    <div class="mdiyas" id="mdiyas" aria-live="polite"></div></div>
+    <div class="mdiyas" id="mdiyas" aria-live="polite"></div><p class="count" id="count"></p></div>
 </section>
 
 <div class="divider rv" aria-hidden="true">❖ 🪔 ❖</div>
@@ -257,7 +250,7 @@ const cols=['pink','teal','o','p'];
 const T={
  hi:{h1:"शुभ दीपावली",sub:"✨ दीपों का त्योहार मुबारक ✨",open:"हमारी शुभकामनाएँ खोलें 🪔",
   memTitle:"पापा जी का आशीर्वाद",memLead:"इस दीपावली, हमारे घर का पहला दीप उनके आशीर्वाद के नाम।",memBtn:"पापा जी के नाम एक दीया जलाएँ 🪔",
-  tallyLbl:"दीये आपने पापा जी के नाम जलाए",credit:"💛 प्रेम सहित निर्मित: महिपाल पारीक",
+  count:n=>n===0?"":n===1?"पापा जी के नाम एक दीया जलाया।":`पापा जी के नाम ${n} दीये जलाए।`,credit:"💛 प्रेम सहित निर्मित: महिपाल पारीक",
   famLead:"रोशनी, मुस्कान और मिठास से भरी दीपावली आपको मुबारक हो।",
   wishTitle:"आपके लिए हमारी शुभकामनाएँ",share:"शुभकामनाएँ भेजें",petals:"फूलों की बारिश 🌼",
   hero:l=>`${l} के परिवार की ओर से आप सभी को दीपावली की हार्दिक शुभकामनाएँ`,
@@ -266,7 +259,7 @@ const T={
   bless:"पापा जी का आशीर्वाद सदा हमारे साथ है 🙏"},
  en:{h1:"Happy Diwali",sub:"✨ Shubh Deepavali ✨",open:"Open our wishes 🪔",
   memTitle:"Blessings of Papa Ji",memLead:"The first light in our home this Diwali is lit for his blessings.",memBtn:"Light a diya for Papa Ji 🪔",
-  tallyLbl:"diyas lit by you for Papa Ji",credit:"💛 Created with love by Mahipal Pareek",
+  count:n=>n===0?"":n===1?"One diya lit for Papa Ji.":`${n} diyas lit for Papa Ji.`,credit:"💛 Created with love by Mahipal Pareek",
   famLead:"Wishing you a Diwali full of light, smiles and sweetness.",
   wishTitle:"Our wishes for you",share:"Share these wishes",petals:"Shower of petals 🌼",
   hero:l=>`We, the family of ${l}, wish you all a very Happy Diwali`,
@@ -277,7 +270,15 @@ const T={
 let L=(new URLSearchParams(location.search).get('lang'))||localStorage.getItem('lang')||'hi';
 if(!T[L])L='hi';
 const cardHTML=(m,i,g)=>m.img?`<div class="card ${['','t','o','p'][i%4]}"><div class="circ"><div class="ph"><span>${g(m.name)[0]}</span><img alt="${g(m.name)}" src="images/${m.img}"></div></div><h3>${g(m.name)}</h3><p>${m.role?g(m.role):''}</p></div>`:`<div class="card nm ${['','t','o','p'][i%4]}"><span class="orn" aria-hidden="true">❖</span><h3>${g(m.name)}</h3></div>`;
-var lit=0;try{lit=+localStorage.getItem("myDiyas")||0}catch(e){}
+let lit=0;
+// tries .jpg, .jpeg, .png, .webp (and CAPITAL versions) before giving up
+function tryImg(img){
+  const exts=['jpg','jpeg','png','webp','JPG','JPEG','PNG','WEBP'];
+  const base=img.getAttribute('src').replace(/\.[^.\/]+$/,'');let i=0;
+  const fail=()=>{i++;if(i<exts.length)img.src=`${base}.${exts[i]}`;else img.remove()};
+  img.addEventListener('error',fail);
+  if(img.complete&&img.naturalWidth===0&&img.getAttribute('src'))fail();
+}
 function render(){
   const t=T[L],g=o=>o[L];
   document.documentElement.lang=L;
@@ -292,14 +293,14 @@ function render(){
   $('credit').textContent=t.credit;
   $('fName').textContent=g(C.late); $('fQuote').textContent=`“${g(C.quote)}”`;
   $('iniF').textContent=g(C.late).replace(/^((स्व\.?|श्री|Late|Shri|Mr\.?)\s+)+/i,'')[0]||'P';
-  showTotal();
-  document.querySelectorAll('.card img').forEach(i=>i.addEventListener('error',()=>i.remove()));
+  $('count').textContent=t.count(lit);
+  document.querySelectorAll('.card img').forEach(tryImg);
   document.querySelectorAll('#lang button').forEach(b=>b.classList.toggle('on',b.dataset.l===L));
 }
 document.querySelectorAll('#lang button').forEach(b=>b.onclick=()=>{L=b.dataset.l;try{localStorage.setItem('lang',L)}catch(e){}render()});
-$('imgF').addEventListener('error',()=>$('imgF').remove());
+tryImg($('imgF'));
 $('imgT').addEventListener('load',()=>$('tg').classList.remove('hidden'));
-$('imgT').addEventListener('error',()=>$('imgT').remove());
+tryImg($('imgT'));
 
 $('openBtn').onclick=()=>$('late').scrollIntoView({behavior:'smooth'});
 
@@ -386,27 +387,10 @@ setTimeout(()=>show(4),900);
 $('openBtn').addEventListener('click',()=>show(5));
 $('petalBtn').addEventListener('click',()=>show(4));
 
-// ---- diya counter (counts the diyas lit on this device) ----
-var shownTotal=null,tweenId=0,lastTap=0;
-function fmt(n){return n.toLocaleString(L==='hi'?'hi-IN':'en-IN')}
-function showTotal(){$('tally').textContent=fmt(shownTotal==null?lit:shownTotal)}
-function setTotal(v){
-  const from=shownTotal===null?0:shownTotal,t0=performance.now(),id=++tweenId;
-  shownTotal=v;
-  (function step(now){if(id!==tweenId)return;const k=Math.min((now-t0)/700,1),e=1-Math.pow(1-k,3);
-    $('tally').textContent=fmt(Math.round(from+(v-from)*e));if(k<1)requestAnimationFrame(step)})(t0);
-}
-function addDiyaIcon(){
-  const m=$('mdiyas');if(m.children.length>=30)return;
-  const d=document.createElement('span');d.className='md';d.textContent='🪔';d.setAttribute('aria-hidden','true');m.appendChild(d);
-}
-for(let i=0;i<Math.min(lit,30);i++)addDiyaIcon();
-shownTotal=lit;showTotal();
+// memorial diya
 $('memBtn').onclick=()=>{
-  const now=Date.now();if(now-lastTap<500)return;lastTap=now;
-  lit++;try{localStorage.setItem('myDiyas',lit)}catch(e){}
-  addDiyaIcon();shower(25);setTotal(lit);
-  const box=$('tallyBox');box.classList.remove('bump');void box.offsetWidth;box.classList.add('bump');
+  lit++; const d=document.createElement('span');d.className='md';d.textContent='🪔';d.setAttribute('aria-hidden','true');
+  $('mdiyas').appendChild(d); $('count').textContent=T[L].count(lit); shower(25);
 };
 // tap anywhere = firecracker burst
 addEventListener('pointerdown',e=>{
